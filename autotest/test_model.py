@@ -12,6 +12,10 @@ from pywatershed.base.control import Control
 from pywatershed.base.model import Model
 from pywatershed.parameters import Parameters, PrmsParameters
 
+fortran_avail = getattr(
+    getattr(pywatershed.hydrology, "prms_canopy"), "has_prmscanopy_f"
+)
+
 compare_to_prms521 = False  # TODO TODO TODO
 failfast = True
 detailed = True
@@ -39,7 +43,10 @@ def control(domain):
     control = Control.load(domain["control_file"])
     control.options["verbose"] = 10
     control.options["budget_type"] = None
-    control.options["calc_method"] = "fortran"
+    if fortran_avail:
+        control.options["calc_method"] = "fortran"
+    else:
+        control.options["calc_method"] = "numba"
     control.options["load_n_time_batches"] = 1
     return control
 
@@ -141,21 +148,32 @@ def test_model(domain, model_args, tmp_path):
 
     control.options["input_dir"] = input_dir
 
-    model = Model(**model_args)
+    if control.options["calc_method"] == "fortran":
+        with pytest.warns(UserWarning):
+            model = Model(**model_args)
+    else:
+        model = Model(**model_args)
 
     # Test passing of control calc_method option
-    for proc in model.processes.keys():
-        if proc.lower() in ["prmssnow", "prmsrunoff", "prmssoilzone"]:
-            assert model.processes[proc]._calc_method == "numba"
-        elif proc.lower() in ["prmscanopy", "prmsgroundwater", "prmschannel"]:
-            # check if has fortran (has_f) because results depend on that
-            mod_name = "prms_" + proc.lower()[4:]
-            var_name = "has_" + proc.lower() + "_f"
-            has_f = getattr(getattr(pywatershed.hydrology, mod_name), var_name)
-            if has_f:
-                assert model.processes[proc]._calc_method == "fortran"
-            else:
+    if fortran_avail:
+        for proc in model.processes.keys():
+            if proc.lower() in ["prmssnow", "prmsrunoff", "prmssoilzone"]:
                 assert model.processes[proc]._calc_method == "numba"
+            elif proc.lower() in [
+                "prmscanopy",
+                "prmsgroundwater",
+                "prmschannel",
+            ]:
+                # check if has fortran (has_f) because results depend on that
+                mod_name = "prms_" + proc.lower()[4:]
+                var_name = "has_" + proc.lower() + "_f"
+                has_f = getattr(
+                    getattr(pywatershed.hydrology, mod_name), var_name
+                )
+                if has_f:
+                    assert model.processes[proc]._calc_method == "fortran"
+                else:
+                    assert model.processes[proc]._calc_method == "numba"
 
     # ---------------------------------
     # get the answer data against PRMS5.2.1
@@ -287,18 +305,18 @@ def test_model(domain, model_args, tmp_path):
         9: {
             "PRMSChannel": {
                 "seg_outflow": {
-                    "drb_2yr": 1430.6364027142613,
-                    "hru_1": 13.416914151483681,
-                    "ucb_2yr": 1694.5412856707849,
+                    "drb_2yr": 1517.232887980279,
+                    "hru_1": 13.696918669514927,
+                    "ucb_2yr": 1694.5697712423928,
                 },
             },
         },
         99: {
             "PRMSChannel": {
                 "seg_outflow": {
-                    "drb_2yr": 1588.1444684289775,
-                    "hru_1": 19.596412903692578,
-                    "ucb_2yr": 407.2200022510677,
+                    "drb_2yr": 2350.499659332901,
+                    "hru_1": 22.874414994530095,
+                    "ucb_2yr": 733.2293013532435,
                 },
             },
         },

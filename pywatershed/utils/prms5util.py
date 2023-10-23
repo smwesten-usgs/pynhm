@@ -6,6 +6,7 @@ import netCDF4 as nc4
 import numpy as np
 import pandas as pd
 
+from ..base import meta
 from ..base.accessor import Accessor
 
 fileish = Union[str, pl.Path]
@@ -249,6 +250,7 @@ class Soltab(Accessor):
         soltab_file: fileish,
         output_dir: fileish = None,
         nhm_ids: np.ndarray = None,
+        chunk_sizes: dict = {"doy": 0, "nhm_id": 0},
     ):
         self.soltab_file = soltab_file
         self.output_dir = output_dir
@@ -273,7 +275,7 @@ class Soltab(Accessor):
         ) = load_soltab_debug(self.soltab_file)
 
         if self.output_dir:
-            self.to_netcdf()
+            self.to_netcdf(chunk_sizes=chunk_sizes)
 
         return
 
@@ -283,7 +285,7 @@ class Soltab(Accessor):
         nhm_ids: np.ndarray = None,
         zlib: bool = True,
         complevel: int = 4,
-        chunk_sizes: dict = {"doy": 0, "hruid": 0},
+        chunk_sizes: dict = {"doy": 0, "nhm_id": 0},
     ):
         # This is just different enough to make it it's own thing compared
         # to the CSV outputs of PRMS.
@@ -303,11 +305,12 @@ class Soltab(Accessor):
         variables = {}
         for vv in self.variables:
             out_file = self.output_dir / f"{vv}.nc"
+            var_meta = meta.find_variables(vv)[vv]
 
             ds = nc4.Dataset(out_file, "w", clobber=True)
             ds.setncattr("Description", "PRMS soltab data")
 
-            # time dime and coord
+            # time dim and coord
             ds.createDimension("doy", ndoy)
             doy = ds.createVariable("doy", "i4", ("doy",))
             doy.units = "Day of year"
@@ -320,16 +323,20 @@ class Soltab(Accessor):
             )
             hruid[:] = self.spatial_coord
 
+            dims = ("doy", self.spatial_coord_name)
+            chunk_sizes_var = [chunk_sizes[vv] for vv in dims]
+
             variables[vv] = ds.createVariable(
                 vv,
-                "f4",
-                ("doy", self.spatial_coord_name),
-                fill_value=nc4.default_fillvals["f4"],
+                "f8",
+                dims,
+                fill_value=nc4.default_fillvals["f8"],
                 zlib=zlib,
                 complevel=complevel,
-                chunksizes=tuple(chunk_sizes.values()),
+                chunksizes=tuple(chunk_sizes_var),
             )
             variables[vv][:] = self[vv]
+            variables[vv].setncatts(var_meta)
             ds.close()
             print(f"Wrote: {out_file}")
         return
