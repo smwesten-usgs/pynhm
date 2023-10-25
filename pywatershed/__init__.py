@@ -21,7 +21,6 @@ from .hydrology.starfit import Starfit
 from .hydrology.SWBRootZone import SWBRootZone
 from .utils import (
     ControlVariables,
-    NetCdfCompare,
     NetCdfRead,
     NetCdfWrite,
     Soltab,
