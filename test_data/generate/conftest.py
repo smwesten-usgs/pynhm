@@ -3,10 +3,24 @@ import pathlib as pl
 import sys
 from fnmatch import fnmatch
 from platform import processor
+from shutil import copy2
+import time
 from typing import List
 from warnings import warn
 
 import pytest
+
+rootdir = ".."
+
+# Subset this to speed up tests by eliminating some domains
+test_dirs = sorted(
+    [path for path in pl.Path(rootdir).iterdir() if path.is_dir()]
+)
+
+# This would change to handle other/additional schedulers
+domain_globs_schedule = ["*conus*"]
+
+final_var_names = ["through_rain", "seg_lateral_inflow"]
 
 
 def pytest_addoption(parser):
@@ -47,16 +61,6 @@ def exe():
     return exe_pth
 
 
-rootdir = ".."
-test_dirs = sorted(
-    [path for path in pl.Path(rootdir).iterdir() if path.is_dir()]
-)
-
-
-# This would change to handle other/additional schedulers
-domain_globs_schedule = ["*conus*"]
-
-
 def scheduler_active():
     slurm = os.getenv("SLURM_JOB_ID") is not None
     pbs = os.getenv("PBS_JOBID") is not None
@@ -81,9 +85,10 @@ def enforce_scheduler(test_dir):
     )
     if any(glob_match):
         msg = (
-            f"Domain '{test_dir}' must be scheduled (use --force to override)"
+            f"Skipping domain '{test_dir}' which must be scheduled or use "
+            "--force to override skip"
         )
-        warn(msg, RuntimeWarning)
+        warn(msg, UserWarning)
         return True
 
     return False
@@ -104,8 +109,8 @@ def collect_simulations(
 
         # optionally enforce scheduler
         if not force:
-            schedule = enforce_scheduler(test_dir)
-            if schedule:
+            skip = enforce_scheduler(test_dir)
+            if skip:
                 continue
 
         # if control file is found, add simulation
@@ -177,7 +182,6 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("simulation", sims, ids=ids, scope="session")
 
     if "final_file" in metafunc.fixturenames:
-        final_var_names = ["through_rain", "seg_lateral_inflow"]
         final_files = [
             pl.Path(kk) / var
             for kk in simulations.keys()

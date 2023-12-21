@@ -1,7 +1,6 @@
 import warnings
 from copy import deepcopy
 import pathlib as pl
-from pprint import pprint
 from typing import Iterable, Literal, Union
 
 import cftime
@@ -48,15 +47,23 @@ template_xr_dd = {
 
 
 class DatasetDict(Accessor):
-    """DatasetDict class maps between netcdf conventions
+    """DatasetDict: a data model following NetCDF-like conventions
 
     This is the core class in the data model adopted by pywatershed.
 
-    Where typically metadata is stored on a variable, we maintain metadata
-    on a collocated dictionary. The data model is a DatasetDict with dims,
-    coords, data_vars, and metadata keys. The dims track the length of each
-    dimension. The coordinates are the discrete locations along dimensions or
-    sets of dimensions. The data_vars contain the data located on dims and
+    The DatasetDict handles dimensions, coordinates, data, and metadata in
+    a way like `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`__ and
+    `xarray <https://docs.xarray.dev/en/stable/>`__  and provides invertible
+    mappings between both the
+    `netCDF4 <https://unidata.github.io/netcdf4-python/>`__ and
+    `xarray <https://docs.xarray.dev/en/stable/>`__ Python packages.
+
+    Where metadata is typically stored on a variable in NetCDF and in xarray,
+    a DatasetDict maintains metadata in dictionary collocated with coordinate
+    and data variables. The data model is a DatasetDict with dims, coords,
+    data_vars, and metadata keys. The dims track the length of each dimension.
+    The coordinates are the discrete locations along dimensions or sets of
+    dimensions. The data_vars contain the data located on dims and
     coordinates. The metadata describes the relationship between both coords
     and data_vars and their dims. Together the coords and data_vars are the
     variables of the DatasetDict. All keys in the variables must be present
@@ -64,7 +71,7 @@ class DatasetDict(Accessor):
     attrs. The dims is a tuple of the variable's dimensions and attrs are
     more general attributes.
 
-    When a netcdf file is read from disk, it has encoding properties that may
+    When a NetCDF file is read from disk, it has encoding properties that may
     come along. Alternatively, encodings may be specified before writing to
     file.
 
@@ -89,7 +96,13 @@ class DatasetDict(Accessor):
             of the supplied dictionaries
 
 
-    Examples:
+    See Also
+    --------
+    pywatershed.Parameters
+
+
+    Examples
+    ---------
 
     ..
         # This code is commented, copy and paste in to python, then paste the
@@ -98,7 +111,9 @@ class DatasetDict(Accessor):
         import pywatershed as pws
         import numpy as np
         coords = {
-            'time': np.arange('2005-02-01', '2005-02-03', dtype='datetime64[D]'),
+            'time': np.arange(
+                '2005-02-01', '2005-02-03', dtype='datetime64[D]'
+            ),
             'space': np.arange(3)
         }
         dims = {'ntime': len(coords['time']), 'nspace': len(coords['space'])}
@@ -869,7 +884,7 @@ def _nc4_var_to_datetime64(var, attrs, encoding):
     return time_data, attrs, encoding
 
 
-def _datetime64_to_nc4_var(var):
+def _datetime64_to_nc4_var(var, units, calendar):
     """vectorized conversion of numpy.datetime64 to a netcdf4 variable."""
     # Based on what xarray does
     # https://github.com/pydata/xarray/blob/
@@ -877,9 +892,11 @@ def _datetime64_to_nc4_var(var):
     from xarray.coding.times import decode_cf_datetime
 
     # This can take encoding info but we are using defaults.
-    (data, units, calendar) = decode_cf_datetime(var)
+    # (data, units, calendar) = decode_cf_datetime(var, units, calendar)
+    # return {"data": data, "units": units, "calendar": calendar}
 
-    return {"data": data, "units": units, "calendar": calendar}
+    data = decode_cf_datetime(var, units, calendar)
+    return {"data": data}
 
 
 def nc4_ds_to_xr_dd(file_or_ds, xr_enc: dict = None) -> dict:
