@@ -7,11 +7,12 @@ cbh_inputs:
 
 control_file: control.test
 param_file: myparam.param
-swb_param_file: ../test_data/hru_1/swb_parameters.yaml
+swb_param_file: swb_parameters.yaml
 
 prms_run_dir: ./
-prms_output_dir: ./output
-swb_output_dir: E:\projects\enterprise_capacity\git\pywatershed\test_data\hru_1\swb_output
+prms_output_dir: output
+swb_output_dir: swb_output
+swb_pws_output_dir: swb_pws_output
 
 cbh_nc: cbh.nc
 

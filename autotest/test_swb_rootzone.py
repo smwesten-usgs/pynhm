@@ -5,8 +5,10 @@ import pytest
 from pywatershed.base.control import Control
 from pywatershed.hydrology.SWBRootZone import SWBRootZone
 
+import xarray as xr
+
 from pywatershed import Parameters
-from pywatershed.utils.netcdf_utils import NetCdfCompare
+#from pywatershed.utils.netcdf_utils import NetCdfCompare
 
 
 def test_init(domain, tmp_path):
@@ -23,6 +25,7 @@ def test_init(domain, tmp_path):
     # load csv files into dataframes
     swb_output_dir = domain["swb_output_dir"]
     prms_output_dir = domain["prms_output_dir"]
+    swb_pws_output_dir = domain["swb_pws_output_dir"]
     input_variables = {}
     for key in SWBRootZone.get_inputs():
         nc_path = pl.Path(prms_output_dir) / f"{key}.nc"
@@ -68,7 +71,8 @@ def test_init(domain, tmp_path):
 
     assert_error = False
     for key, (base, compare) in output_compare.items():
-        success, diff = NetCdfCompare(base, compare).compare()
+        base_ds = xr.open_dataset(base)
+        compare_ds = xr.open_dataset(compare)
         breakpoint()
         if not success:
             print(

@@ -75,6 +75,9 @@ def pytest_generate_tests(metafunc):
                 "cbh_nc",
                 "prms_run_dir",
                 "prms_output_dir",
+                "swb_param_file",
+                "swb_pws_output_dir",
+                "swb_output_dir",
             ]:
                 domain_dict[ff] = pathlib.Path(domain_dict[ff])
                 if not domain_dict[ff].is_absolute():
