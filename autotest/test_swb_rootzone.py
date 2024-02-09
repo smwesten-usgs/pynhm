@@ -20,7 +20,7 @@ def test_init(domain, tmp_path):
     # params.to_netcdf(nc_file, use_xr=True)
 
     # Set information from the control file
-    control = Control.load(domain["control_file"])
+    control = Control.from_yaml(domain["control_file"])
 
     # load csv files into dataframes
     swb_output_dir = domain["swb_output_dir"]
@@ -39,7 +39,8 @@ def test_init(domain, tmp_path):
         budget_type="warn",
     )
 
-    nc_parent = tmp_path / domain["domain_name"]
+    #nc_parent = tmp_path / domain["domain_name"]
+    nc_parent = swb_pws_output_dir
     swb_rz.initialize_netcdf(nc_parent)
 
     output_compare = {}
@@ -53,7 +54,8 @@ def test_init(domain, tmp_path):
             pl.Path(swb_output_dir)
             / f"hru_1_5000__{key.removeprefix('swb_')}__1979-01-01_to_2019-12-31__1_by_1.nc"
         )
-        compare_nc_path = tmp_path / domain["domain_name"] / f"{key}.nc"
+        #compare_nc_path = tmp_path / domain["domain_name"] / f"{key}.nc"
+        compare_nc_path = swb_pws_output_dir / f"{key}.nc"
         output_compare[key] = (base_nc_path, compare_nc_path)
 
         print(f"base_nc_path: {base_nc_path}")
@@ -67,7 +69,7 @@ def test_init(domain, tmp_path):
 
     swb_rz.finalize()
 
-    # breakpoint()
+    breakpoint()
 
     assert_error = False
     for key, (base, compare) in output_compare.items():

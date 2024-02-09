@@ -1,79 +1,41 @@
 import numpy as np
 
-TM_SLOPE_TERM_IN      = 0.478769194198665
-TM_SLOPE_TERM_MM      = 0.539815721014123
-TM_EXPONENT_TERM      = -1.03678439421169
-
-def thornthwaite_mather_soil_moisture_inches(max_soil_moisture, apwl):
+def calc_daily_actual_et(rainfall, snowmelt, pet, soil_storage, soil_storage_max):
     """
-    Return the current soil moisture (in inches) given the current soil moisture maximum (in inches),
-    as well as the current accumulated potential water loss (APWL). APWL is the running sum of the difference
-    between the potential ET and the actual ET. Equation and constants come from an R equation fitting exercise 
-    applied to the original soil-mosture retention tables included in Thornthwaite and Mather (1957).
+    Return the current soil moisture (in inches) given the current soil moisture maximum,
+    and the difference between (rainfall + snowmelt) minus the daily potential evapotranspiration.
 
-    max_soil_moisture       Maximum moisture content of a soil at field capacity, in inches.
-    apwl                    Running sum of daily difference between PET and AET, in inches.
+    rainfall                Daily rainfall amount (mm or inches).
+    snowmelt                Daily snowmelt amount (mm or inches).
+    previous_soil_storage   
+    soil_storage_max        Maximum moisture content of a soil at field capacity.
     """
 
-    soil_moisture = np.where( max_soil_moisture > 0.,
-        max_soil_moisture * 10**(-TM_SLOPE_TERM_IN*apwl*max_soil_moisture**TM_EXPONENT_TERM),
-        0.0
-    )
-    return(soil_moisture)
+    p_minus_pet = rainfall + snowmelt - pet
+
+    if p_minus_pet >= 0:
+        # see Alley, 1984, eqn. 1
+        aet = pet
+    else:
+        # see Alley, 1984, eqn 2.
+
+        # in order to come close to the published Thornthwaite-Mather tables, it seems to be
+        # necessary to truncate or round the values, which is apparently what was done in the production
+        # of the original tables
+
+        temp_soil_storage = soil_storage * np.exp( p_minus_pet / soil_storage_max )
+        aet = soil_storage - temp_soil_storage
 
 
-def thornthwaite_mather_soil_moisture_millimeters(max_soil_moisture, apwl):
-    """
-    Return the current soil moisture (in millimeters) given the current soil moisture maximum (in millimeters),
-    as well as the current accumulated potential water loss (APWL). APWL is the running sum of the difference
-    between the potential ET and the actual ET. Equation and constants come from an R equation fitting exercise 
-    applied to the original soil-mosture retention tables included in Thornthwaite and Mather (1957).
-
-    max_soil_moisture       Maximum moisture content of a soil at field capacity, in millimeters.
-    apwl                    Running sum of daily difference between PET and AET, in millimeters.
-    """
-
-    soil_moisture = np.where( max_soil_moisture > 0.,
-        max_soil_moisture * 10**(-TM_SLOPE_TERM_MM*apwl*max_soil_moisture**TM_EXPONENT_TERM),
-        0.0
-    )
-    return(soil_moisture)
-
-
-def thornthwaite_mather_accumulated_potential_water_loss_inches(max_soil_moisture, soil_moisture):
-    """
-    Return the accumulated potential water loss (in inches) given the current soil moisture (in inches),
-    as well as maximum soil moisture (in inches). APWL is the running sum of the difference
-    between the potential ET and the actual ET. Equation and constants come from an R equation fitting exercise 
-    applied to the original soil-mosture retention tables included in Thornthwaite and Mather (1957).    
-    """
-    apwl = np.where(max_soil_moisture > 0.,
-        - (np.log(soil_moisture / max_soil_moisture))/(np.log(10)*TM_SLOPE_TERM_IN*max_soil_moisture**TM_EXPONENT_TERM),
-        0.0
-        )
-    return(apwl)
-
-
-
-def thornthwaite_mather_accumulated_potential_water_loss_millimeters(max_soil_moisture, soil_moisture):
-    """
-    Return the accumulated potential water loss (in millimeters) given the current soil moisture (in millimeters),
-    as well as maximum soil moisture (in millimeters). APWL is the running sum of the difference
-    between the potential ET and the actual ET. Equation and constants come from an R equation fitting exercise 
-    applied to the original soil-mosture retention tables included in Thornthwaite and Mather (1957).    
-    """
-    apwl = np.where(max_soil_moisture > 0.,
-        - (np.log(soil_moisture) - np.log(max_soil_moisture))/(np.log(10)*TM_SLOPE_TERM_MM*max_soil_moisture**TM_EXPONENT_TERM),
-        0.0
-        )
-    return(apwl)
+    return(p_minus_pet, aet)
 
 
 def actual_et_references():
     """
+    Alley, W.M., 1984, On the Treatment of Evapotranspiration, Soil Moisture Accounting, and Aquifer Recharge in Monthly
+        Water Balance Models: Water Resources Research, v. 20, no. 8, p. 1137–1149.
+
     Thornthwaite, C.W., and Mather, J.R., 1957, Instructions and tables for computing potential evapotranspiration
         and the water balance: Publications in Climatology, v. 10, no. 3, p. 1-104.
-
-    
     """
     pass

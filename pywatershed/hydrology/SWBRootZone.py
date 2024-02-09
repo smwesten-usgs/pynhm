@@ -88,8 +88,6 @@ class SWBRootZone(ConservativeProcess):
             "swb_soil_storage_change": zero,
             "swb_net_infiltration": zero,
             "swb_soil_storage_max": zero,
-            "swb_accumulated_potential_water_loss": zero,
-            "swb_accumulated_potential_water_loss_old": zero,
         }
 
     @staticmethod
@@ -109,10 +107,12 @@ class SWBRootZone(ConservativeProcess):
         }
 
     def _set_initial_conditions(self):
-        self.swb_soil_storage[:] = self.swb_soil_storage_init.copy()
-        self.swb_soil_storage_max[:] = (
+        self.swb_soil_storage = self.swb_soil_storage_init.copy()
+        self.swb_soil_storage_max = (
             self.available_water_capacity * self.rooting_depth
         )
+        self.curve_number_storage_S = cn.calculate_cn_S_inches(self.base_curve_number)
+
         return
 
     def _advance_variables(self) -> None:
@@ -138,10 +138,11 @@ class SWBRootZone(ConservativeProcess):
 
         #        self.accumulated_potential_water_loss_old[:] = self.swb_accumulated_potential_water_loss[:].copy()
 
+        self.swb_soil_storage_old = self.swb_soil_storage.copy()
+
         (
             self.swb_runoff[:],
             self.swb_soil_storage[:],
-            self.swb_accumulated_potential_water_loss[:],
             self.swb_actual_et[:],
             self.swb_net_infiltration[:],
         ) = self._calculate_numpy(
@@ -149,9 +150,9 @@ class SWBRootZone(ConservativeProcess):
             net_rain=self.net_rain,
             snowmelt=self.snowmelt,
             reference_et=self.potet,
-            apwl=self.swb_accumulated_potential_water_loss,
-            storage_max=self.swb_soil_storage_max,
-            storage_old=self.swb_soil_storage_old,
+            soil_storage=self.swb_soil_storage,
+            soil_storage_max=self.swb_soil_storage_max,
+            soil_storage_old=self.swb_soil_storage_old,
         )
         return
 
@@ -161,63 +162,80 @@ class SWBRootZone(ConservativeProcess):
         net_rain,
         snowmelt,
         reference_et,
-        apwl,
-        storage_max,
-        storage_old,
+        soil_storage,
+        soil_storage_max,
+        soil_storage_old,
     ):
-        apwl_new = np.full_like(apwl, fill_value=0.0)
-        actual_et = np.full_like(apwl, fill_value=0.0)
-        storage = np.full_like(storage_old, fill_value=0.0)
-        net_infiltration = np.full_like(apwl, fill_value=0.0)
+        actual_et = np.full_like(net_rain, fill_value=0.0)
+        runoff = np.full_like(net_rain, fill_value=0.0)
+        net_infiltration = np.full_like(net_rain, fill_value=0.0)
 
-        inflow = net_rain + snowmelt
-        curve_number_storage_S = cn.calculate_cn_S_inches(base_curve_number)
-        runoff = cn.calculate_cn_runoff(
-            inflow=inflow, storage_S=curve_number_storage_S
-        )
+        for n in range(len(actual_et)):
 
-        P_minus_PE = inflow - runoff - reference_et
+            inflow = net_rain[n] + snowmelt[n]
+            curve_number_storage_S = cn.calculate_cn_S_inches(base_curve_number[n].value)
+            runoff[n] = cn.calculate_cn_runoff(inflow=inflow,
+                                               storage_S=curve_number_storage_S,
+                                              )
 
-        P_minus_PE_ge_0 = np.where(P_minus_PE >= 0.0)
-        P_minus_PE_lt_0 = np.where(P_minus_PE < 0.0)
+            actual_et[n] = aet.calc_daily_actual_et(rainfall=net_rain[n],
+                                                    snowmelt=snowmelt[n],
+                                                    pet=reference_et[n],
+                                                    soil_storage=soil_storage[n],
+                                                    soil_storage_max=soil_storage_max[n])
+        
+            soil_storage[n] = soil_storage_old[n] + inflow - runoff - actual_et
 
-        # handle cases where P minus PET is >= 0
-        if len(P_minus_PE_ge_0[0]) > 0:
-            actual_et[P_minus_PE_ge_0] = reference_et[P_minus_PE_ge_0]
-            temp_storage = (
-                storage_old[P_minus_PE_ge_0] + P_minus_PE[P_minus_PE_ge_0]
-            )
-            zeros = np.full_like(temp_storage, fill_value=0.0)
-            storage[P_minus_PE_ge_0] = np.min(
-                (storage_max[P_minus_PE_ge_0], temp_storage)
-            )
-            net_infiltration[P_minus_PE_ge_0] = np.max(
-                (zeros, temp_storage - storage_max[P_minus_PE_ge_0])
-            )
+            if soil_storage[n] > soil_storage_max[n]:
+                net_infiltration[n] = soil_storage[n] - soil_storage_max[n]
+                soil_storage[n] = soil_storage_max[n]
+            else:
+                net_infiltration[n] = 0.0
 
-            apwl_new[
-                P_minus_PE_ge_0
-            ] = aet.thornthwaite_mather_accumulated_potential_water_loss_inches(
-                max_soil_moisture=storage_max[P_minus_PE_ge_0],
-                soil_moisture=storage,
-            )
-            actual_et[P_minus_PE_ge_0] = reference_et[P_minus_PE_ge_0]
+        # P_minus_PE = inflow - runoff - reference_et
 
-        # now handle cases where P minus PET < 0
-        if len(P_minus_PE_lt_0[0]) > 0:
-            apwl_new[P_minus_PE_lt_0] = apwl_new[P_minus_PE_lt_0] + np.abs(
-                P_minus_PE[P_minus_PE_lt_0]
-            )
-            storage[
-                P_minus_PE_lt_0
-            ] = aet.thornthwaite_mather_soil_moisture_inches(
-                max_soil_moisture=storage_max[P_minus_PE_lt_0],
-                apwl=apwl_new[P_minus_PE_lt_0],
-            )
-            actual_et[P_minus_PE_lt_0] = (
-                storage_old[P_minus_PE_lt_0] - storage[P_minus_PE_lt_0]
-            )
+        # P_minus_PE_ge_0 = np.where(P_minus_PE >= 0.0)
+        # P_minus_PE_lt_0 = np.where(P_minus_PE < 0.0)
+
+
+
+        # # handle cases where P minus PET is >= 0
+        # if len(P_minus_PE_ge_0[0]) > 0:
+        #     actual_et[P_minus_PE_ge_0] = reference_et[P_minus_PE_ge_0]
+        #     temp_storage = (
+        #         storage_old[P_minus_PE_ge_0] + P_minus_PE[P_minus_PE_ge_0]
+        #     )
+        #     zeros = np.full_like(temp_storage, fill_value=0.0)
+        #     storage[P_minus_PE_ge_0] = np.min(
+        #         (storage_max[P_minus_PE_ge_0], temp_storage)
+        #     )
+        #     net_infiltration[P_minus_PE_ge_0] = np.max(
+        #         (zeros, temp_storage - storage_max[P_minus_PE_ge_0])
+        #     )
+
+        #     apwl_new[
+        #         P_minus_PE_ge_0
+        #     ] = aet.thornthwaite_mather_accumulated_potential_water_loss_inches(
+        #         max_soil_moisture=storage_max[P_minus_PE_ge_0],
+        #         soil_moisture=storage,
+        #     )
+        #     actual_et[P_minus_PE_ge_0] = reference_et[P_minus_PE_ge_0]
+
+        # # now handle cases where P minus PET < 0
+        # if len(P_minus_PE_lt_0[0]) > 0:
+        #     apwl_new[P_minus_PE_lt_0] = apwl_new[P_minus_PE_lt_0] + np.abs(
+        #         P_minus_PE[P_minus_PE_lt_0]
+        #     )
+        #     storage[
+        #         P_minus_PE_lt_0
+        #     ] = aet.thornthwaite_mather_soil_moisture_inches(
+        #         max_soil_moisture=storage_max[P_minus_PE_lt_0],
+        #         apwl=apwl_new[P_minus_PE_lt_0],
+        #     )
+        #     actual_et[P_minus_PE_lt_0] = (
+        #         storage_old[P_minus_PE_lt_0] - storage[P_minus_PE_lt_0]
+        #     )
 
         # breakpoint()
 
-        return (runoff, storage, apwl_new, actual_et, net_infiltration)
+        return (runoff, soil_storage, actual_et, net_infiltration)
