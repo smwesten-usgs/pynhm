@@ -11,21 +11,25 @@ from pywatershed import Parameters
 #from pywatershed.utils.netcdf_utils import NetCdfCompare
 
 
-def test_init(domain, tmp_path):
+def test_init(tmp_path):
     tmp_path = pl.Path(tmp_path)
-    params = Parameters.from_yaml(domain["swb_param_file"])
+
+    ##
+    ##  **TODO** hardwire paths to test data for now...
+    ##
+    params = Parameters.from_yaml('../test_data/hru_1/swb_parameters.yaml')
 
     # TODO fix this. make it a data of DatasetDict.from_yaml()
     # nc_file = tmp_path / "swb_params_hru_1.nc"
     # params.to_netcdf(nc_file, use_xr=True)
 
     # Set information from the control file
-    control = Control.from_yaml(domain["control_file"])
+    control = Control.from_yaml('../test_data/hru_1/swb_control.yaml')
 
     # load csv files into dataframes
-    swb_output_dir = domain["swb_output_dir"]
-    prms_output_dir = domain["prms_output_dir"]
-    swb_pws_output_dir = domain["swb_pws_output_dir"]
+    swb_output_dir = pl.Path('../test_data/hru_1/swb_output')
+    prms_output_dir = pl.Path('../test_data/hru_1/output')
+    swb_pws_output_dir = pl.Path('../test_data/hru_1/swb_pws_output')
     input_variables = {}
     for key in SWBRootZone.get_inputs():
         nc_path = pl.Path(prms_output_dir) / f"{key}.nc"

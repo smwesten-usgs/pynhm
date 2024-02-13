@@ -1,4 +1,4 @@
-from numpy import nanmax, float_power
+from numpy import nanmax, float_power, ndarray
 from ..constants import DEGREES_TO_RADIANS, RADIANS_TO_DEGREES
 from .solar_and_meteorological_functions import relative_earth_sun_distance__D_r, \
                                                 solar_declination__delta,         \
@@ -6,8 +6,13 @@ from .solar_and_meteorological_functions import relative_earth_sun_distance__D_r
                                                 extraterrestrial_radiation__Ra,   \
                                                 equivalent_evaporation
 
-def et0_hargreaves_samani(extraterrestrial_radiation__Ra, air_temp_min, air_temp_max, air_temp_mean, 
-                            et_slope=0.0023, et_constant=17.8, et_exponent=0.5):
+def et0_hargreaves_samani(extraterrestrial_radiation__Ra: ndarray, 
+                          air_temp_min: ndarray,
+                          air_temp_max: ndarray,
+                          air_temp_mean: ndarray,
+                          et_slope: float = 0.0023,
+                          et_constant: float = 17.8,
+                          et_exponent: float =0.5):
     """
     Return the daily reference evapotranspriation in millimeters given extraterrestrial
     radiation (expressed as the number of millimeters of water that could be evaporated by

@@ -35,7 +35,7 @@ metadata:
     units: inches per foot
 
   base_curve_number:
-    default: 70.0
+    default: [70.0]
     desc: National Soil Conservation Service curve number for type 2 antecedant runoff condition
     dims:
       - nhru
@@ -51,24 +51,24 @@ metadata:
     dims:
       - nhru
     help: Maximum daily net_infiltration rate, in inches
-    maximum: 20.0
+    maximum: [20.0]
     minimum: 0.0
     type: float32
     units: inches
 
   rooting_depth:
-    default: 1.0
+    default: [1.0]
     desc: Rooting depth for an SWB soil storage reservoir
     dims:
       - nhru
     help: Rooting depth, in feet
-    maximum: 12.0
+    maximum: [12.0]
     minimum: 0.0
     type: float32
     units: feet
 
   swb_soil_storage_init:
-    default: .5
+    default: [0.5]
     desc: Initial (cold start) swb_soil_storage
     dims:
       - nhru
