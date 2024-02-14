@@ -1,3 +1,4 @@
+from typing import Literal
 from ..base.conservative_process import ConservativeProcess
 from ..parameters import Parameters
 
@@ -145,8 +146,9 @@ class SWBRootZone(ConservativeProcess):
         self._simulation_time = simulation_time
 
         (
-            self.swb_runoff[:],
             self.swb_soil_storage[:],
+            self.swb_soil_storage_change[:],
+            self.swb_runoff[:],
             self.swb_actual_et[:],
             self.swb_net_infiltration[:],
         ) = self._calculate_numpy(
@@ -169,7 +171,6 @@ class SWBRootZone(ConservativeProcess):
         soil_storage_max,
     ):
         actual_et = np.full_like(net_rain, fill_value=0.0)
-        p_minus_pet = np.full_like(net_rain, fill_value=0.0)
         runoff = np.full_like(net_rain, fill_value=0.0)
         net_infiltration = np.full_like(net_rain, fill_value=0.0)
 
@@ -186,7 +187,7 @@ class SWBRootZone(ConservativeProcess):
                                                             soil_storage_max=soil_storage_max
                                                            )
         #breakpoint()
-
+        soil_storage_old = soil_storage.copy()
         soil_storage = soil_storage + inflow - runoff - actual_et
 
         cond = soil_storage > soil_storage_max
@@ -194,6 +195,7 @@ class SWBRootZone(ConservativeProcess):
         soil_storage = np.where(cond, soil_storage_max, soil_storage)
         net_infiltration = np.where(cond, soil_storage - soil_storage_max, zero)
 
+        soil_storage_change = soil_storage - soil_storage_old
         # breakpoint()
 
-        return (runoff, soil_storage, actual_et, net_infiltration)
+        return (soil_storage, soil_storage_change, runoff, actual_et, net_infiltration)

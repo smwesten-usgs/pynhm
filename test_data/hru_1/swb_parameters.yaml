@@ -6,11 +6,11 @@ coords:
     - 1
 
 data_vars:
-  max_net_infiltration_rate: 0.24
-  available_water_capacity: 3.0
-  rooting_depth: 1.2
-  base_curve_number: 87
-  swb_soil_storage_init: .5
+  max_net_infiltration_rate: [0.24]
+  available_water_capacity: [3.0]
+  rooting_depth: [1.2]
+  base_curve_number: [87]
+  swb_soil_storage_init: [0.314]
 
 metadata:
   global:

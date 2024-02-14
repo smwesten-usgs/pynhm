@@ -2,35 +2,56 @@ import pathlib as pl
 
 import pytest
 
+from pywatershed.base.adapter import adapter_factory
 from pywatershed.base.control import Control
 from pywatershed.hydrology.SWBRootZone import SWBRootZone
+from pywatershed.parameters import Parameters
+from utils_compare import assert_allclose
 
 import xarray as xr
 
-from pywatershed import Parameters
-#from pywatershed.utils.netcdf_utils import NetCdfCompare
+# compare in memory (faster) or full output files? or both!
+do_compare_output_files = False
+do_compare_in_memory = True
+rtol = atol = 5.0e-6
 
+calc_methods = ("numpy", )
+vars_compare = ("swb_soil_storage",)
 
-def test_init(tmp_path):
+@pytest.fixture(scope="function")
+def control():
+    control_file=pl.Path('../test_data/hru_1/swb_control.yaml')
+    control = Control.from_yaml(control_file)
+    control.options['parameter_file'] = control_file.parent / control.options['parameter_file']
+    return control
+
+@pytest.fixture(scope="function")
+def parameters(control):
+    params = Parameters.from_yaml(control.options['parameter_file'])
+    return params
+
+@pytest.fixture(scope="function")
+def answers(control):
+    answers = {}
+    swb_output_dir = pl.Path('../test_data/hru_1/swb_output')
+    var_name_map = {'swb_soil_storage': 'soil_storage'}
+    for key in vars_compare:
+        var_path = (
+            pl.Path(swb_output_dir)
+            / f"hru_1_5000__{key.removeprefix('swb_')}__1979-01-01_to_2019-12-31__1_by_1.nc"
+        )
+        ### the following results in a shape mismatch in following steps...
+        answers[key] = xr.open_dataset(var_path)[var_name_map[key]].values.squeeze()
+
+    return answers
+
+def test_compare_swb(control, parameters, answers, tmp_path):
     tmp_path = pl.Path(tmp_path)
 
-    ##
-    ##  **TODO** hardwire paths to test data for now...
-    ##
-    params = Parameters.from_yaml('../test_data/hru_1/swb_parameters.yaml')
-
-    # TODO fix this. make it a data of DatasetDict.from_yaml()
-    # nc_file = tmp_path / "swb_params_hru_1.nc"
-    # params.to_netcdf(nc_file, use_xr=True)
-
-    # Set information from the control file
-    control = Control.from_yaml('../test_data/hru_1/swb_control.yaml')
-
     # load csv files into dataframes
-    swb_output_dir = pl.Path('../test_data/hru_1/swb_output')
     prms_output_dir = pl.Path('../test_data/hru_1/output')
-    swb_pws_output_dir = pl.Path('../test_data/hru_1/swb_pws_output')
     input_variables = {}
+
     for key in SWBRootZone.get_inputs():
         nc_path = pl.Path(prms_output_dir) / f"{key}.nc"
         input_variables[key] = nc_path
@@ -38,58 +59,24 @@ def test_init(tmp_path):
     swb_rz = SWBRootZone(
         control,
         None,
-        params,
+        parameters,
         **input_variables,
         budget_type="warn",
+        calc_method="numpy",
     )
 
-    #nc_parent = tmp_path / domain["domain_name"]
-    nc_parent = swb_pws_output_dir
-    swb_rz.initialize_netcdf(nc_parent)
-
-    output_compare = {}
-    vars_compare = ("swb_soil_storage",)
-
-    for key in SWBRootZone.get_variables():
-        if key not in vars_compare:
-            continue
-
-        base_nc_path = (
-            pl.Path(swb_output_dir)
-            / f"hru_1_5000__{key.removeprefix('swb_')}__1979-01-01_to_2019-12-31__1_by_1.nc"
-        )
-        #compare_nc_path = tmp_path / domain["domain_name"] / f"{key}.nc"
-        compare_nc_path = swb_pws_output_dir / f"{key}.nc"
-        output_compare[key] = (base_nc_path, compare_nc_path)
-
-        print(f"base_nc_path: {base_nc_path}")
-        print(f"compare_nc_path: {compare_nc_path}")
+    # not using, since we're comparing in memory
+    #swb_rz.initialize_netcdf(tmp_path)
 
     for istep in range(control.n_times):
         control.advance()
         swb_rz.advance()
         swb_rz.calculate(float(istep))
         swb_rz.output()
+        for var in vars_compare:
+            assert_allclose(actual=swb_rz[var],
+                            desired=answers[var][istep])
 
     swb_rz.finalize()
-
-    breakpoint()
-
-    assert_error = False
-    for key, (base, compare) in output_compare.items():
-        base_ds = xr.open_dataset(base)
-        compare_ds = xr.open_dataset(compare)
-        breakpoint()
-        if not success:
-            print(
-                f"comparison for {key} failed: "
-                + f"maximum error {diff[key][0]} "
-                + f"(maximum allowed error {diff[key][1]}) "
-                + f"in column {diff[key][2]}"
-            )
-            assert_error = True
-    assert not assert_error, "comparison failed"
-
-    # breakpoint()
 
     return
