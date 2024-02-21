@@ -25,6 +25,9 @@ zero = np.zeros([1])[0]
 one = np.ones([1])[0]
 nan = np.nan
 
+DEGREES_TO_RADIANS = np.pi / 180.
+RADIANS_TO_DEGREES = 180. / np.pi
+
 epsilon = np.finfo(zero).eps
 # https://en.wikipedia.org/wiki/Machine_epsilon
 # use values slightly larger than the informal definition

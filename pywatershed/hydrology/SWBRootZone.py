@@ -5,8 +5,7 @@ from ..parameters import Parameters
 from pywatershed.base.adapter import adaptable
 from pywatershed.base.control import Control
 from pywatershed.constants import nan, zero
-import pywatershed.functions.runoff_curve_number as cn
-import pywatershed.functions.actual_et_thornthwaite_mather as aet
+import pywatershed.hydrology.swb_functions as swbfn
 import numpy as np
 
 
@@ -120,12 +119,11 @@ class SWBRootZone(ConservativeProcess):
         self.swb_soil_storage_max = (
             self.available_water_capacity * self.rooting_depth
         )
-        self.curve_number_storage_S = cn.calculate_cn_S_inches(self.base_curve_number)
-
+        self.curve_number_storage_S = swbfn.calculate_cn_S_inches(self.base_curve_number)
         return
 
     def _advance_variables(self) -> None:
-        """Advance the SWBRunoffCurveNumber
+        """Advance the SWBRootZone calculation.
         Returns:
             None
         """
@@ -133,7 +131,7 @@ class SWBRootZone(ConservativeProcess):
         return
 
     def _calculate(self, simulation_time):
-        """Calculate SWBRunoffCurveNumber for a time step
+        """Calculate SWBRootZone for a time step
 
         Args:
             simulation_time: current simulation time
@@ -175,12 +173,12 @@ class SWBRootZone(ConservativeProcess):
         net_infiltration = np.full_like(net_rain, fill_value=0.0)
 
         inflow = net_rain + snowmelt
-        curve_number_storage_S = cn.calculate_cn_S_inches(base_curve_number)
-        runoff = cn.calculate_cn_runoff(inflow=inflow,
+        curve_number_storage_S = swbfn.calculate_cn_S_inches(base_curve_number)
+        runoff = swbfn.calculate_cn_runoff(inflow=inflow,
                                         storage_S=curve_number_storage_S,
                                        )
 
-        (p_minus_pet, actual_et) = aet.calc_daily_actual_et(rainfall=net_rain,
+        (p_minus_pet, actual_et) = swbfn.calc_daily_actual_et(rainfall=net_rain,
                                                             snowmelt=snowmelt,
                                                             pet=reference_et,
                                                             soil_storage=soil_storage,
@@ -191,11 +189,10 @@ class SWBRootZone(ConservativeProcess):
         soil_storage = soil_storage + inflow - runoff - actual_et
 
         cond = soil_storage > soil_storage_max
-
         soil_storage = np.where(cond, soil_storage_max, soil_storage)
         net_infiltration = np.where(cond, soil_storage - soil_storage_max, zero)
 
         soil_storage_change = soil_storage - soil_storage_old
-        # breakpoint()
+        #breakpoint()
 
         return (soil_storage, soil_storage_change, runoff, actual_et, net_infiltration)

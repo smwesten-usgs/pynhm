@@ -19,6 +19,7 @@ from .hydrology.prms_snow import PRMSSnow
 from .hydrology.prms_soilzone import PRMSSoilzone
 from .hydrology.starfit import Starfit
 from .hydrology.SWBRootZone import SWBRootZone
+from .hydrology.swb_functions import *
 from .utils import (
     ControlVariables,
     NetCdfRead,
