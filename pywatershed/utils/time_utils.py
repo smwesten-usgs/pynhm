@@ -16,7 +16,7 @@ def dt64_to_dt(dt64: np.datetime64) -> datetime.datetime:
 
 def datetime_year(dt64: np.datetime64) -> int:
     """Get the year from np.datetime64"""
-    return dt64.astype("datetime64[Y]").astype(int) + 1970
+    return dt64.values.astype("datetime64[Y]").astype(int) + 1970
 
 
 def datetime_month(dt64: np.datetime64, zero_based=False) -> int:
@@ -24,7 +24,7 @@ def datetime_month(dt64: np.datetime64, zero_based=False) -> int:
     Args:
          zero_based: count as a zero-based index.
     """
-    return dt64.astype("datetime64[M]").astype(int) % 12 + _offset(zero_based)
+    return dt64.values.astype("datetime64[M]").astype(int) % 12 + _offset(zero_based)
 
 
 def datetime_doy(dt64: np.datetime64, zero_based=False) -> int:
@@ -32,9 +32,14 @@ def datetime_doy(dt64: np.datetime64, zero_based=False) -> int:
     Args:
         zero_based: count as a zero-based index.
     """
-    return (dt64 - dt64.astype("datetime64[Y]")).astype(
-        "timedelta64[D]"
-    ).astype(int) + _offset(zero_based)
+    year = datetime_year(dt64)
+    start_date = np.datetime64(f"{year}-01-01")
+    diff = dt64 - start_date
+    return diff.astype("timedelta64[D]").astype(int) + _offset(zero_based)
+
+    # return (dt64 - dt64.astype("datetime64[Y]")).astype(
+    #     "timedelta64[D]"
+    # ).astype(int) + _offset(zero_based)
 
 
 def datetime_dowy(dt64: np.datetime64, zero_based=False) -> int:
@@ -52,6 +57,15 @@ def datetime_dowy(dt64: np.datetime64, zero_based=False) -> int:
 def datetime_epiweek(dt64: np.datetime64) -> int:
     """Get CDC eipweek [1, 53] from np.datetime64"""
     return ew.Week.fromdate(dt64_to_dt(dt64)).week
+
+
+def datetime_num_days_in_year(dt64: np.datetime64, zero_based=False) -> int:
+    """Return the number of days in the current year."""
+    year = datetime_year(dt64)
+    start_date = np.datetime64(f"{year}-01-01")
+    end_date = np.datetime64(f"{year}-12-31")
+    diff = end_date - start_date
+    return diff.astype("timedelta64[D]").astype(int) + _offset(zero_based)
 
 
 def _offset(zero_based: bool):

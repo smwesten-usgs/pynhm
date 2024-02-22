@@ -43,20 +43,20 @@ def calc_daily_actual_et(rainfall: ndarray,
 
 def calculate_net_precipitation_and_snowfall(gross_precipitation: ndarray,
                                              interception: ndarray, 
-                                             tmin: ndarray, 
-                                             tmax: ndarray):
+                                             tminf: ndarray, 
+                                             tmaxf: ndarray):
     """Logic block from SWB for partitioning gross_precipitation into rainfall and snowfall.
 
     Args:
         gross_precipitation (ndarray): _description_
         interception (ndarray): _description_
-        tmin (ndarray): _description_
-        tmax (ndarray): _description_
+        tminf (ndarray): _description_
+        tmaxf (ndarray): _description_
     """
 
     FREEZING_POINT = 32.0
 
-    cond_lt_freezing = ((tmin + tmax) / 2.0 - ( tmax - tmin ) / 3.0 ) <= FREEZING_POINT
+    cond_lt_freezing = ((tminf + tmaxf) / 2.0 - ( tmaxf - tminf ) / 3.0 ) <= FREEZING_POINT
 
     snowfall = where(cond_lt_freezing, gross_precipitation, zero)
     net_snowfall = where(cond_lt_freezing, gross_precipitation - interception, zero)
@@ -64,6 +64,20 @@ def calculate_net_precipitation_and_snowfall(gross_precipitation: ndarray,
     net_rainfall = where(cond_lt_freezing, zero, gross_precipitation - interception)
 
     return snowfall, net_snowfall, rainfall, net_rainfall
+
+
+def calculate_snowmelt(tmeanc, tmaxc, snow_storage):
+
+    MELT_INDEX = 1.5  # mm/deg C above freezing
+
+    # temperatures in degrees Celcius, snowmelt in mm
+    cond_snowmelt = tmeanc > zero
+    potential_snowmelt = where(cond_snowmelt, MELT_INDEX * tmaxc, zero)
+
+    cond_snow_stor = potential_snowmelt > snow_storage
+    snowmelt = where(cond_snow_stor, snow_storage, potential_snowmelt)
+
+    return snowmelt
 
 
 def daylight_hours( omega_s: ndarray ):
@@ -199,7 +213,7 @@ def et0_hargreaves_samani(extraterrestrial_radiation__Ra: ndarray,
     """
     air_temp_delta = air_temp_max - air_temp_min
 
-    et0 = nanmax((0.0,
+    et0 = nanmax(([0.0],
                   et_slope * extraterrestrial_radiation__Ra * (air_temp_mean + et_constant)          \
                        * float_power(air_temp_delta,et_exponent)) 
              )
@@ -333,3 +347,19 @@ def adjust_curve_number(curve_number, inflow_5_day_sum, is_growing_season=False,
                              np.where(inflow_5_day_sum < ARC_DRY_DORMANT, curve_number_arc1, curve_number))
 
     return curve_number_adj
+
+
+def c_to_f(temperature_deg_c: ndarray):
+    """Return temperature in degrees Fahrenheit.
+    
+
+    Args:
+        temperature_deg_c (ndarray): temperature in degrees Celsius
+
+    Returns:
+        ndarray: temperature in degrees Fahrenheit 
+    """
+
+    temperature_deg_f = temperature_deg_c * 1.8 + 32
+
+    return temperature_deg_f

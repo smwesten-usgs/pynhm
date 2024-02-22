@@ -11,6 +11,7 @@ data_vars:
   rooting_depth: [1.35]
   base_curve_number: [85.7]
   swb_soil_storage_init: [3.38]
+  swb_snow_storage_init: [2.0]
 
 metadata:
   global:
@@ -70,6 +71,16 @@ metadata:
   swb_soil_storage_init:
     default: [0.5]
     desc: Initial (cold start) swb_soil_storage
+    dims:
+      - nhru
+    maximum: 4.0
+    minimum: 0.0
+    type: float32
+    units: inches
+
+  swb_snow_storage_init:
+    default: [0.5]
+    desc: Initial (cold start) swb_snow_storage
     dims:
       - nhru
     maximum: 4.0

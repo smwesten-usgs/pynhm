@@ -57,6 +57,8 @@ def test_compare_swb(control, parameters, answers, tmp_path):
         nc_path = pl.Path(prms_output_dir) / f"{key}.nc"
         input_variables[key] = nc_path
 
+#    breakpoint()
+
     swb_rz = SWBRootZone(
         control,
         None,
@@ -66,7 +68,6 @@ def test_compare_swb(control, parameters, answers, tmp_path):
         calc_method="numpy",
     )
 
-    # not using, since we're comparing in memory
     swb_rz.initialize_netcdf(swb_output_dir)
 
     for istep in range(control.n_times):

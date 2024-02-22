@@ -3070,26 +3070,44 @@ swb_actual_et:
     0: nhru
   type: float64
   units: inches
-swb_accumulated_potential_water_loss:
-  desc: Accumulated potential water loss as per Thornthwaite-Mather (1957)
-  dims:
-    0: nhru
-  type: float64
-  units: inches
-swb_accumulated_potential_water_loss_old:
-  desc: Accumulated potential water loss as per Thornthwaite-Mather (1957)
-  dims:
-    0: nhru
-  type: float64
-  units: inches
 swb_net_infiltration:
   desc: Infiltrated water that leaves the root zone
   dims:
     0: nhru
   type: float64
   units: inches
+swb_snowmelt:
+  desc: SWB snowmelt
+  dims:
+    0: nhru
+  type: float64
+  units: inches
 swb_runoff:
   desc: Runoff calculated by a SWB method
+  dims:
+    0: nhru
+  type: float64
+  units: inches
+swb_snowfall:
+  desc: SWB snowfall
+  dims:
+    0: nhru
+  type: float64
+  units: inches
+swb_snow_storage:
+  desc: SWB snow storage
+  dims:
+    0: nhru
+  type: float64
+  units: inches
+swb_snow_storage_old:
+  desc: SWB old snow storage amount
+  dims:
+    0: nhru
+  type: float64
+  units: inches
+swb_snow_storage_change:
+  desc: SWB snow storage change
   dims:
     0: nhru
   type: float64
